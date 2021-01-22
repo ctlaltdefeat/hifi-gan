@@ -212,11 +212,14 @@ class MelDataset(torch.utils.data.Dataset):
                 center=False,
             )
         else:
+            # mel = np.load(
+            #     os.path.join(
+            #         self.base_mels_path,
+            #         os.path.splitext(os.path.split(filename)[-1])[0] + ".npy",
+            #     )
+            # )
             mel = np.load(
-                os.path.join(
-                    self.base_mels_path,
-                    os.path.splitext(os.path.split(filename)[-1])[0] + ".npy",
-                )
+                Path(filename).resolve().with_suffix(".npy")
             )
             mel = torch.from_numpy(mel)
 

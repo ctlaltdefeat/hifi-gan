@@ -37,6 +37,8 @@ from utils import (
 
 torch.backends.cudnn.benchmark = True
 
+from adabelief_pytorch import AdaBelief
+
 
 def train(rank, a, h):
     if h.num_gpus > 1:
@@ -83,25 +85,43 @@ def train(rank, a, h):
         mpd = DistributedDataParallel(mpd, device_ids=[rank]).to(device)
         msd = DistributedDataParallel(msd, device_ids=[rank]).to(device)
 
-    optim_g = torch.optim.AdamW(
-        generator.parameters(), h.learning_rate, betas=[h.adam_b1, h.adam_b2]
+    # optim_g = torch.optim.AdamW(
+    #     generator.parameters(), h.learning_rate, betas=[h.adam_b1, h.adam_b2]
+    # )
+    # optim_d = torch.optim.AdamW(
+    #     itertools.chain(msd.parameters(), mpd.parameters()),
+    #     h.learning_rate,
+    #     betas=[h.adam_b1, h.adam_b2],
+    # )
+    optim_g = AdaBelief(
+        generator.parameters(),
+        h.learning_rate,
+        betas=[h.adam_b1, h.adam_b2],
+        eps=1e-14,
+        weight_decouple=True,
+        print_change_log=False,
+        weight_decay=1e-6,
     )
-    optim_d = torch.optim.AdamW(
+    optim_d = AdaBelief(
         itertools.chain(msd.parameters(), mpd.parameters()),
         h.learning_rate,
         betas=[h.adam_b1, h.adam_b2],
+        eps=1e-14,
+        weight_decouple=True,
+        print_change_log=False,
+        weight_decay=1e-6,
     )
 
-    if state_dict_do is not None:
-        optim_g.load_state_dict(state_dict_do["optim_g"])
-        optim_d.load_state_dict(state_dict_do["optim_d"])
+    # if state_dict_do is not None:
+    #     optim_g.load_state_dict(state_dict_do["optim_g"])
+    #     optim_d.load_state_dict(state_dict_do["optim_d"])
 
-    scheduler_g = torch.optim.lr_scheduler.ExponentialLR(
-        optim_g, gamma=h.lr_decay, last_epoch=last_epoch
-    )
-    scheduler_d = torch.optim.lr_scheduler.ExponentialLR(
-        optim_d, gamma=h.lr_decay, last_epoch=last_epoch
-    )
+    # scheduler_g = torch.optim.lr_scheduler.ExponentialLR(
+    #     optim_g, gamma=h.lr_decay, last_epoch=last_epoch
+    # )
+    # scheduler_d = torch.optim.lr_scheduler.ExponentialLR(
+    #     optim_d, gamma=h.lr_decay, last_epoch=last_epoch
+    # )
 
     training_filelist, validation_filelist = get_dataset_filelist2(a)
 
@@ -316,7 +336,9 @@ def train(rank, a, h):
                                 h.fmin,
                                 h.fmax_for_loss,
                             )
-                            val_err_tot += F.l1_loss(y_mel, y_g_hat_mel).item()
+                            val_err_tot += F.l1_loss(
+                                y_mel, y_g_hat_mel[:, :, : y_mel.shape[-1]]
+                            ).item()
 
                             if j <= 4:
                                 if steps == 0:
@@ -365,8 +387,8 @@ def train(rank, a, h):
 
             steps += 1
 
-        scheduler_g.step()
-        scheduler_d.step()
+        # scheduler_g.step()
+        # scheduler_d.step()
 
         if rank == 0:
             print(
@@ -396,7 +418,7 @@ def main():
     parser.add_argument("--stdout_interval", default=5, type=int)
     parser.add_argument("--checkpoint_interval", default=5000, type=int)
     parser.add_argument("--summary_interval", default=100, type=int)
-    parser.add_argument("--validation_interval", default=1000, type=int)
+    parser.add_argument("--validation_interval", default=200, type=int)
     parser.add_argument("--fine_tuning", default=False, type=bool)
 
     a = parser.parse_args()

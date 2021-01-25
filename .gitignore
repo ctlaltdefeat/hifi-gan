@@ -1,3 +1,5 @@
 *.pyc
 pretrained*
 datasets
+g_*
+do_*

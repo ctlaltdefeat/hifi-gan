@@ -194,15 +194,19 @@ class Generator(torch.nn.Module):
 
     def forward(self, x):
         x = self.conv_pre(x)
-        for i in range(self.num_upsamples):
+        for up_idx, up in enumerate(self.ups):
             x = F.leaky_relu(x, 0.1)
-            x = self.ups[i](x)
-            xs = None
-            for j in range(self.num_kernels):
-                if xs is None:
-                    xs = self.resblocks[i * self.num_kernels + j](x)
-                else:
-                    xs += self.resblocks[i * self.num_kernels + j](x)
+            x = up(x)
+            xs = torch.zeros_like(x)
+
+            for resblock_idx, resblock in enumerate(self.resblocks):
+                if (
+                    up_idx * self.num_kernels
+                    <= resblock_idx
+                    < (up_idx + 1) * self.num_kernels
+                ):
+                    xs += resblock(x)
+
             x = xs / self.num_kernels
         x = F.leaky_relu(x)
         x = self.conv_post(x)

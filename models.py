@@ -4,8 +4,6 @@ import torch.nn as nn
 from torch.nn import Conv1d, ConvTranspose1d, AvgPool1d, Conv2d
 from torch.nn.utils import weight_norm, remove_weight_norm, spectral_norm
 
-# from .utils import init_weights, get_padding
-
 LRELU_SLOPE = 0.1
 
 
@@ -22,6 +20,7 @@ def get_padding(kernel_size, dilation=1):
 class ResBlock1(torch.nn.Module):
     def __init__(self, h, channels, kernel_size=3, dilation=(1, 3, 5)):
         super(ResBlock1, self).__init__()
+        self.lrelu_slope = LRELU_SLOPE
         self.h = h
         self.convs1 = nn.ModuleList(
             [
@@ -97,9 +96,9 @@ class ResBlock1(torch.nn.Module):
 
     def forward(self, x):
         for c1, c2 in zip(self.convs1, self.convs2):
-            xt = F.leaky_relu(x, 0.1)
+            xt = F.leaky_relu(x, self.lrelu_slope)
             xt = c1(xt)
-            xt = F.leaky_relu(xt, 0.1)
+            xt = F.leaky_relu(xt, self.lrelu_slope)
             xt = c2(xt)
             x = xt + x
         return x
@@ -115,6 +114,7 @@ class ResBlock2(torch.nn.Module):
     def __init__(self, h, channels, kernel_size=3, dilation=(1, 3)):
         super(ResBlock2, self).__init__()
         self.h = h
+        self.lrelu_slope = LRELU_SLOPE
         self.convs = nn.ModuleList(
             [
                 weight_norm(
@@ -143,7 +143,7 @@ class ResBlock2(torch.nn.Module):
 
     def forward(self, x):
         for c in self.convs:
-            xt = F.leaky_relu(x, LRELU_SLOPE)
+            xt = F.leaky_relu(x, self.lrelu_slope)
             xt = c(xt)
             x = xt + x
         return x
@@ -156,6 +156,7 @@ class ResBlock2(torch.nn.Module):
 class Generator(torch.nn.Module):
     def __init__(self, h):
         super(Generator, self).__init__()
+        self.lrelu_slope = LRELU_SLOPE
         self.h = h
         self.num_kernels = len(h.resblock_kernel_sizes)
         self.num_upsamples = len(h.upsample_rates)
@@ -195,7 +196,7 @@ class Generator(torch.nn.Module):
     def forward(self, x):
         x = self.conv_pre(x)
         for up_idx, up in enumerate(self.ups):
-            x = F.leaky_relu(x, 0.1)
+            x = F.leaky_relu(x, self.lrelu_slope)
             x = up(x)
             xs = torch.zeros_like(x)
 
@@ -206,6 +207,12 @@ class Generator(torch.nn.Module):
                     < (up_idx + 1) * self.num_kernels
                 ):
                     xs += resblock(x)
+
+            # for j in range(self.num_kernels):
+            #     if xs is None:
+            #         xs = self.resblocks[up_idx*self.num_kernels+j](x)
+            #     else:
+            #         xs += self.resblocks[up_idx*self.num_kernels+j](x)
 
             x = xs / self.num_kernels
         x = F.leaky_relu(x)
@@ -229,6 +236,7 @@ class DiscriminatorP(torch.nn.Module):
         self, period, kernel_size=5, stride=3, use_spectral_norm=False
     ):
         super(DiscriminatorP, self).__init__()
+        self.lrelu_slope = LRELU_SLOPE
         self.period = period
         norm_f = weight_norm if use_spectral_norm == False else spectral_norm
         self.convs = nn.ModuleList(
@@ -289,7 +297,7 @@ class DiscriminatorP(torch.nn.Module):
 
         for l in self.convs:
             x = l(x)
-            x = F.leaky_relu(x, LRELU_SLOPE)
+            x = F.leaky_relu(x, self.lrelu_slope)
             fmap.append(x)
         x = self.conv_post(x)
         fmap.append(x)
@@ -330,6 +338,7 @@ class MultiPeriodDiscriminator(torch.nn.Module):
 class DiscriminatorS(torch.nn.Module):
     def __init__(self, use_spectral_norm=False):
         super(DiscriminatorS, self).__init__()
+        self.lrelu_slope = LRELU_SLOPE
         norm_f = weight_norm if use_spectral_norm == False else spectral_norm
         self.convs = nn.ModuleList(
             [
@@ -348,7 +357,7 @@ class DiscriminatorS(torch.nn.Module):
         fmap = []
         for l in self.convs:
             x = l(x)
-            x = F.leaky_relu(x, LRELU_SLOPE)
+            x = F.leaky_relu(x, self.lrelu_slope)
             fmap.append(x)
         x = self.conv_post(x)
         fmap.append(x)

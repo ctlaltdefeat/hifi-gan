@@ -239,43 +239,43 @@ def train(rank, a, h):
         mpd = DistributedDataParallel(mpd, device_ids=[rank]).to(device)
         msd = DistributedDataParallel(msd, device_ids=[rank]).to(device)
 
-    # optim_g = torch.optim.AdamW(
-    #     generator.parameters(), h.learning_rate, betas=[h.adam_b1, h.adam_b2]
-    # )
-    # optim_d = torch.optim.AdamW(
-    #     itertools.chain(msd.parameters(), mpd.parameters()),
-    #     h.learning_rate,
-    #     betas=[h.adam_b1, h.adam_b2],
-    # )
-    optim_g = AdaBelief(
-        generator.parameters(),
-        h.learning_rate,
-        betas=[h.adam_b1, h.adam_b2],
-        eps=1e-14,
-        weight_decouple=True,
-        print_change_log=False,
-        weight_decay=1e-6,
+    optim_g = torch.optim.AdamW(
+        generator.parameters(), h.learning_rate, betas=[h.adam_b1, h.adam_b2]
     )
-    optim_d = AdaBelief(
+    optim_d = torch.optim.AdamW(
         itertools.chain(msd.parameters(), mpd.parameters()),
         h.learning_rate,
         betas=[h.adam_b1, h.adam_b2],
-        eps=1e-14,
-        weight_decouple=True,
-        print_change_log=False,
-        weight_decay=1e-6,
     )
-
-    # if state_dict_do is not None:
-    #     optim_g.load_state_dict(state_dict_do["optim_g"])
-    #     optim_d.load_state_dict(state_dict_do["optim_d"])
-
-    # scheduler_g = torch.optim.lr_scheduler.ExponentialLR(
-    #     optim_g, gamma=h.lr_decay, last_epoch=last_epoch
+    # optim_g = AdaBelief(
+    #     generator.parameters(),
+    #     h.learning_rate,
+    #     betas=[h.adam_b1, h.adam_b2],
+    #     eps=1e-14,
+    #     weight_decouple=True,
+    #     print_change_log=False,
+    #     weight_decay=1e-6,
     # )
-    # scheduler_d = torch.optim.lr_scheduler.ExponentialLR(
-    #     optim_d, gamma=h.lr_decay, last_epoch=last_epoch
+    # optim_d = AdaBelief(
+    #     itertools.chain(msd.parameters(), mpd.parameters()),
+    #     h.learning_rate,
+    #     betas=[h.adam_b1, h.adam_b2],
+    #     eps=1e-14,
+    #     weight_decouple=True,
+    #     print_change_log=False,
+    #     weight_decay=1e-6,
     # )
+
+    if state_dict_do is not None:
+        optim_g.load_state_dict(state_dict_do["optim_g"])
+        optim_d.load_state_dict(state_dict_do["optim_d"])
+
+    scheduler_g = torch.optim.lr_scheduler.ExponentialLR(
+        optim_g, gamma=h.lr_decay, last_epoch=last_epoch
+    )
+    scheduler_d = torch.optim.lr_scheduler.ExponentialLR(
+        optim_d, gamma=h.lr_decay, last_epoch=last_epoch
+    )
 
     training_filelist, validation_filelist = get_dataset_filelist2(a)
 
@@ -565,8 +565,8 @@ def train(rank, a, h):
 
             steps += 1
 
-        # scheduler_g.step()
-        # scheduler_d.step()
+        scheduler_g.step()
+        scheduler_d.step()
 
         if rank == 0:
             print(

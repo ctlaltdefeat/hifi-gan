@@ -297,16 +297,16 @@ def train(rank, a, h):
         base_mels_path=a.input_mels_dir,
     )
 
-    # train_sampler = DistributedSamplerWrapper(
-    #     BalanceClassSampler(
-    #         [
-    #             s[-1]
-    #             for s in pickle.load(open(Path(a.input_training_file), "rb"))
-    #         ],
-    #         "downsampling",
-    #     ),
-    # )
-    train_sampler = DistributedSampler(trainset) if h.num_gpus > 1 else None
+    train_sampler = DistributedSamplerWrapper(
+        BalanceClassSampler(
+            [
+                s[-1]
+                for s in pickle.load(open(Path(a.input_training_file), "rb"))
+            ],
+            "downsampling",
+        ),
+    )
+    # train_sampler = DistributedSampler(trainset) if h.num_gpus > 1 else None
 
     train_loader = DataLoader(
         trainset,
@@ -344,23 +344,23 @@ def train(rank, a, h):
             ],
             "downsampling",
         )
-        # validation_loader = DataLoader(
-        #     validset,
-        #     num_workers=1,
-        #     shuffle=False,
-        #     sampler=validation_sampler,
-        #     batch_size=1,
-        #     pin_memory=True,
-        #     drop_last=True,
-        # )
         validation_loader = DataLoader(
             validset,
             num_workers=1,
             shuffle=False,
+            sampler=validation_sampler,
             batch_size=1,
             pin_memory=True,
             drop_last=True,
         )
+        # validation_loader = DataLoader(
+        #     validset,
+        #     num_workers=1,
+        #     shuffle=False,
+        #     batch_size=1,
+        #     pin_memory=True,
+        #     drop_last=True,
+        # )
 
         sw = SummaryWriter(os.path.join(a.checkpoint_path, "logs"))
 

@@ -306,7 +306,7 @@ def train(rank, a, h):
             "downsampling",
         ),
     )
-    # train_sampler = DistributedSampler(trainset) if h.num_gpus > 1 else None
+    train_sampler = DistributedSampler(trainset) if h.num_gpus > 1 else None
 
     train_loader = DataLoader(
         trainset,
@@ -347,7 +347,7 @@ def train(rank, a, h):
         validation_loader = DataLoader(
             validset,
             num_workers=1,
-            shuffle=False,
+            # shuffle=True,
             sampler=validation_sampler,
             batch_size=1,
             pin_memory=True,

@@ -308,6 +308,10 @@ def train(rank, a, h):
             "upsampling",
         ),
     )
+    # train_sampler = BalanceClassSampler(
+    #     [s[-1] for s in pickle.load(open(Path(a.input_training_file), "rb"))],
+    #     "upsampling",
+    # )
     # train_sampler = DistributedSampler(trainset) if h.num_gpus > 1 else None
 
     train_loader = DataLoader(
@@ -444,7 +448,7 @@ def train(rank, a, h):
             scaler.step(optim_g)
 
             scaler.update()
-            
+
             if rank == 0:
                 # STDOUT logging
                 if steps % a.stdout_interval == 0:
